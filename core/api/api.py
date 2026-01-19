@@ -4,8 +4,8 @@ router = Router()
 
 @router.get("/health")
 def mobile_health_check(request):
-    return {"message": "Mobile API is healthy!", "type": "mobile"}
+    return {"message": "API is healthy!", "type": "api"}
 
 @router.get("/status")
 def mobile_status(request):
-    return {"status": "ok", "api": "mobile"}
+    return {"status": "ok", "api": "api"}
