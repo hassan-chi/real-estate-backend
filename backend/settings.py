@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,11 +17,11 @@ DEBUG = (os.getenv("DEBUG", "True").strip().lower() in ("1", "true", "yes", "y",
 
 ALLOWED_HOSTS = ["*"]
 
-
 # Application definition
 
 INSTALLED_APPS = [
-
+    "cities_light",
+    'admin_searchable_dropdown',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -28,7 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'core.apps.CoreConfig',
+    'core.apps.CoreConfig'
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -60,7 +61,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
@@ -74,7 +74,6 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", ""),
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -94,7 +93,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
@@ -106,7 +104,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
@@ -115,10 +112,8 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-
 AUTH_USER_MODEL = 'core.CustomUser'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-
-
+CITIES_LIGHT_INCLUDE_COUNTRIES = ['US', 'GB', 'IQ']

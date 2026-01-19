@@ -1,5 +1,9 @@
+from cities_light.models import Country, Region, City
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from djmoney.models.fields import MoneyField
+
+from core.validators.phone_number_validator import validate_phone_us_uk_iq
 
 
 class CustomUser(AbstractUser):
@@ -9,16 +13,22 @@ class CustomUser(AbstractUser):
         AGENT = 'agent', 'Agent'
         ADMIN = 'admin', 'Admin'
 
-    full_name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=20, unique=True)
+    phone = models.CharField(max_length=20, unique=True, null=True, blank=True,
+                             help_text="US (+1), UK (+44), or Iraq (+964) only",
+                             )
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.USER)
-    province = models.CharField(max_length=100)
-    city = models.CharField(max_length=100)
+    country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    province = models.ForeignKey(Region, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    city = models.ForeignKey(City , on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.full_name
+        return self.username
+
+    def clean(self):
+        super().clean()
+        self.phone_number = validate_phone_us_uk_iq(self.phone)
 
 
 class Property(models.Model):
@@ -41,8 +51,7 @@ class Property(models.Model):
     description = models.TextField()
     property_type = models.CharField(max_length=20, choices=PropertyType.choices)
     listing_type = models.CharField(max_length=10, choices=ListingType.choices)
-    price = models.DecimalField(max_digits=12, decimal_places=2)
-    currency = models.CharField(max_length=10, default='USD')
+    price = MoneyField(max_digits=12, decimal_places=2, default_currency='USD')
     location = models.JSONField()  # For lat/lng
     status = models.CharField(max_length=10, choices=PropertyStatus.choices, default=PropertyStatus.AVAILABLE)
     approved = models.BooleanField(default=False)
@@ -73,4 +82,4 @@ class PropertyRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'{self.get_request_type_display()} for {self.property.title} by {self.user.full_name}'
+        return f'{self.get_request_type_display()} for {self.property.title} by {self.user.username}'
