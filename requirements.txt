@@ -1,3 +1,4 @@
+python-jose
 annotated-types==0.7.0
 asgiref==3.11.0
 babel==2.17.0
@@ -25,3 +26,4 @@ sqlparse==0.5.5
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 Unidecode==1.4.0
+twilio

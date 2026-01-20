@@ -108,12 +108,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
 
 AUTH_USER_MODEL = 'core.CustomUser'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CITIES_LIGHT_INCLUDE_COUNTRIES = ['US', 'GB', 'IQ']
+
+# Twilio Configuration
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")

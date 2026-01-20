@@ -1,7 +1,9 @@
 from cities_light.models import Country, Region, City
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from djmoney.models.fields import MoneyField
+from moneyed import Currency
 
 from core.validators.phone_number_validator import validate_phone_us_uk_iq
 
@@ -19,7 +21,7 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.USER)
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     province = models.ForeignKey(Region, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
-    city = models.ForeignKey(City , on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -29,6 +31,15 @@ class CustomUser(AbstractUser):
     def clean(self):
         super().clean()
         self.phone_number = validate_phone_us_uk_iq(self.phone)
+
+
+class Currency(models.Model):
+    code = models.CharField(max_length=3, unique=True)
+    name = models.CharField(max_length=20)
+    symbol = models.CharField(max_length=5)
+
+    def __str__(self):
+        return self.code
 
 
 class Property(models.Model):
@@ -51,7 +62,11 @@ class Property(models.Model):
     description = models.TextField()
     property_type = models.CharField(max_length=20, choices=PropertyType.choices)
     listing_type = models.CharField(max_length=10, choices=ListingType.choices)
-    price = MoneyField(max_digits=12, decimal_places=2, default_currency='USD')
+    price = models.IntegerField(validators=[
+        MinValueValidator(1),
+        MaxValueValidator(20)
+    ])
+    currency = models.ForeignKey(Currency, on_delete=models.PROTECT)
     location = models.JSONField()  # For lat/lng
     status = models.CharField(max_length=10, choices=PropertyStatus.choices, default=PropertyStatus.AVAILABLE)
     approved = models.BooleanField(default=False)
