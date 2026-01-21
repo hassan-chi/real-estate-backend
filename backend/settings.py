@@ -113,7 +113,7 @@ AUTH_USER_MODEL = 'core.CustomUser'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CITIES_LIGHT_INCLUDE_COUNTRIES = ['US', 'GB', 'IQ']
+CITIES_LIGHT_INCLUDE_COUNTRIES = ['GB']
 
 # Twilio Configuration
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")

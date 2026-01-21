@@ -1,10 +1,9 @@
+from __future__ import annotations
+import uuid
 from cities_light.models import Country, Region, City
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from djmoney.models.fields import MoneyField
-from moneyed import Currency
-
 from core.validators.phone_number_validator import validate_phone_us_uk_iq
 
 
@@ -24,13 +23,26 @@ class CustomUser(AbstractUser):
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    profile_completed = models.BooleanField(default=False)
 
     def __str__(self):
         return self.username
 
+    def save(self, *args, **kwargs):
+        if self.phone:
+            self.phone = validate_phone_us_uk_iq(self.phone)
+
+        # If user is created with phone only, generate a username
+        if not self.username:
+            # Example: user_9647712345678_8f2a
+            phone_part = (self.phone or "user").replace("+", "")
+            self.username = f"user_{phone_part}_{uuid.uuid4().hex[:4]}"
+
+        super().save(*args, **kwargs)
+
     def clean(self):
         super().clean()
-        self.phone_number = validate_phone_us_uk_iq(self.phone)
+        self.phone = validate_phone_us_uk_iq(self.phone)
 
 
 class Currency(models.Model):
@@ -98,3 +110,84 @@ class PropertyRequest(models.Model):
 
     def __str__(self):
         return f'{self.get_request_type_display()} for {self.property.title} by {self.user.username}'
+
+
+from django.db import models
+from django.utils import timezone
+from datetime import timedelta
+
+
+class PhoneOTP(models.Model):
+    class Purpose(models.TextChoices):
+        REGISTER = "register", "Register"
+        RESET = "reset", "Reset Password"
+        LOGIN = "login", "Login"
+
+    phone = models.CharField(max_length=20, db_index=True)
+    purpose = models.CharField(
+        max_length=20,
+        choices=Purpose.choices,
+        db_index=True,
+    )
+
+    # Twilio Verify
+    provider = models.CharField(max_length=20, default="twilio")
+    verification_sid = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Twilio Verify SID",
+    )
+
+    expires_at = models.DateTimeField(db_index=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["phone", "purpose", "expires_at"]),
+            models.Index(fields=["phone", "purpose", "used_at"]),
+            models.Index(fields=["verification_sid"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.phone} ({self.purpose})"
+
+    # ---------- State helpers ----------
+
+    @property
+    def is_used(self) -> bool:
+        return self.used_at is not None
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    def mark_used(self) -> None:
+        self.used_at = timezone.now()
+        self.save(update_fields=["used_at"])
+
+    # ---------- Factory ----------
+
+    @classmethod
+    def create_with_sid(
+            cls,
+            *,
+            phone: str,
+            purpose: str,
+            verification_sid: str,
+            ttl_minutes: int = 5,
+            provider: str = "twilio",
+    ) -> "PhoneOTP":
+        """
+        Create an OTP record that references a Twilio Verify SID.
+        """
+        expires_at = timezone.now() + timedelta(minutes=ttl_minutes)
+
+        return cls.objects.create(
+            phone=phone,
+            purpose=purpose,
+            provider=provider,
+            verification_sid=verification_sid,
+            expires_at=expires_at,
+        )
