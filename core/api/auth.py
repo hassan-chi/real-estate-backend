@@ -25,7 +25,7 @@ class GlobalAuth(HttpBearer):
         except JWTError as e:
             return e
         try:
-            if user := CustomUser.objects.get(pk=user_pk.get("pk", None), is_active=True):
+            if user := CustomUser.objects.select_related('country' , 'province' , 'city').get(pk=user_pk.get("pk", None), is_active=True):
                 request.user = user
                 return {"user": user, "token": token}
         except CustomUser.DoesNotExist:
