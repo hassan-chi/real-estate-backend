@@ -119,3 +119,15 @@ CITIES_LIGHT_INCLUDE_COUNTRIES = ['GB']
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")
+# settings.py
+
+OTP_TEST_MODE = os.getenv("OTP_TEST_MODE", "false").lower() == "true"
+
+OTP_WHITELIST = [
+    phone.strip()
+    for phone in os.getenv("OTP_WHITELIST", "").split(",")
+    if phone.strip()
+]
+
+OTP_TEST_CODE = os.getenv("OTP_TEST_CODE", "00000")
+
