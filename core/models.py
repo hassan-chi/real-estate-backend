@@ -130,12 +130,15 @@ class PhoneOTP(models.Model):
         db_index=True,
     )
 
+    challenge_hash = models.CharField(max_length=64, unique=True, db_index=True , default="")
+
     # Twilio Verify
     provider = models.CharField(max_length=20, default="twilio")
     verification_sid = models.CharField(
         max_length=100,
         db_index=True,
         help_text="Twilio Verify SID",
+        null=True,
     )
 
     expires_at = models.DateTimeField(db_index=True)

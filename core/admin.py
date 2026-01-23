@@ -90,7 +90,7 @@ class CustomUserAdmin(UserAdmin):
     fieldsets = (
         (None, {"fields": ("username", "phone", "email", "password")}),
         ("Permissions", {"fields": ("role", "is_staff", "is_superuser", "groups", "user_permissions")}),
-        ("Status", {"fields": ("is_verified", "is_active")}),
+        ("Status", {"fields": ("is_verified", "is_active" , 'profile_completed')}),
     )
 
     # CREATE page (IMPORTANT: no "password" here)

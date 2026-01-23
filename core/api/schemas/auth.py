@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ninja import Schema
-from pydantic import ValidationError, field_validator, Field, EmailStr
+from pydantic import field_validator, Field, EmailStr
 from core.validators.phone_number_validator import validate_phone_us_uk_iq
 
 
@@ -19,6 +19,9 @@ class CityOut(Schema):
     id: int
     name: str
 
+class LoginSchema(Schema):
+    token: str
+
 class PhoneNumberSchema(Schema):
     phone_number: str
 
@@ -32,16 +35,9 @@ class PhoneNumberSchema(Schema):
 
 
 class VerificationCheckSchema(Schema):
-    phone_number: str
+    token: str
     code: str
 
-    @field_validator('phone_number')
-    @classmethod
-    def validate_phone(cls, v : str) -> str:
-        try:
-            return validate_phone_us_uk_iq(v)
-        except Exception as e:
-            raise ValidationError(str(e))
 
 
 class CompleteProfileIn(Schema):
@@ -66,9 +62,9 @@ class UserOut(Schema):
     role: str
     is_verified: bool
     profile_completed: bool
-    country: CountryOut
-    province: ProvinceOut
-    city: CityOut
+    country: Optional[CountryOut] = None
+    province: Optional[ProvinceOut] = None
+    city: Optional[CityOut] = None
 
 
 class AuthOutSchema(Schema):
