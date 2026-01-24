@@ -1,9 +1,13 @@
 from __future__ import annotations
 import uuid
+from datetime import timedelta
+
 from cities_light.models import Country, Region, City
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.utils import timezone
+
 from core.validators.phone_number_validator import validate_phone_us_uk_iq
 
 
@@ -54,6 +58,13 @@ class Currency(models.Model):
         return self.code
 
 
+class Amenity(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    icon = models.ImageField(upload_to='amenities/', blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
 class Property(models.Model):
     class PropertyType(models.TextChoices):
         APARTMENT = 'apartment', 'Apartment'
@@ -78,14 +89,21 @@ class Property(models.Model):
         MinValueValidator(1)
     ])
     currency = models.ForeignKey(Currency, on_delete=models.PROTECT)
+    province = models.ForeignKey(Region, on_delete=models.SET_NULL, null=True, blank=True)
+    city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True)
     location = models.JSONField()  # For lat/lng
     status = models.CharField(max_length=10, choices=PropertyStatus.choices, default=PropertyStatus.AVAILABLE)
     approved = models.BooleanField(default=False)
     owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='properties')
+    bedrooms = models.PositiveIntegerField(default=1)
+    bathrooms = models.PositiveIntegerField(default=1)
+    area = models.PositiveIntegerField(help_text="in square meters", default=0) # in square meters
+    amenities = models.ManyToManyField(Amenity, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
+
 
 
 class PropertyRequest(models.Model):
@@ -111,9 +129,6 @@ class PropertyRequest(models.Model):
         return f'{self.get_request_type_display()} for {self.property.title} by {self.user.username}'
 
 
-from django.db import models
-from django.utils import timezone
-from datetime import timedelta
 
 
 class PhoneOTP(models.Model):
