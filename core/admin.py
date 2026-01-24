@@ -1,6 +1,6 @@
 from django.contrib.auth.admin import UserAdmin
 
-from .models import CustomUser, PropertyRequest, Property, Currency
+from .models import CustomUser, PropertyRequest, Property, Currency, PropertyImage
 
 from django.contrib import admin, messages
 from django.urls import path
@@ -13,6 +13,11 @@ class OwnerFilter(AutocompleteFilter):
     title = "Owner"
     field_name = "owner"
 
+class PropertyImageInline(admin.TabularInline):
+    model = PropertyImage
+    extra = 1
+    fields = ("image", "is_cover", "order")
+    ordering = ("order",)
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
@@ -21,7 +26,7 @@ class PropertyAdmin(admin.ModelAdmin):
     list_filter = ("status", "approved", "property_type", OwnerFilter)
     search_fields = ("title", "owner__username")
     actions = ("approve_properties",)
-
+    inlines = [PropertyImageInline]
     readonly_fields = ("approve_button",)
 
     def get_readonly_fields(self, request, obj=None):
@@ -123,3 +128,7 @@ class CurrencyAdmin(admin.ModelAdmin):
     listener_fields = ('code', "name")
     list_filter = ('code', 'name')
     search_fields = ('code', 'name')
+
+
+
+
