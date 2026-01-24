@@ -1,6 +1,6 @@
 from django.contrib.auth.admin import UserAdmin
 
-from .models import CustomUser, PropertyRequest, Property, Currency, PropertyImage
+from .models import CustomUser, PropertyRequest, Property, Currency, PropertyImage, Amenity
 
 from django.contrib import admin, messages
 from django.urls import path
@@ -13,17 +13,24 @@ class OwnerFilter(AutocompleteFilter):
     title = "Owner"
     field_name = "owner"
 
+
+class AmenityFilter(AutocompleteFilter):
+    title = "Amenities"
+    field_name = "amenities"
+
+
 class PropertyImageInline(admin.TabularInline):
     model = PropertyImage
     extra = 1
     fields = ("image", "is_cover", "order")
     ordering = ("order",)
 
+
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    autocomplete_fields = ("owner",)
+    autocomplete_fields = ("owner", "city", 'province')
     list_display = ("title", "owner", "status", "approved")
-    list_filter = ("status", "approved", "property_type", OwnerFilter)
+    list_filter = ("status", "approved", "property_type", OwnerFilter, 'amenities__name')
     search_fields = ("title", "owner__username")
     actions = ("approve_properties",)
     inlines = [PropertyImageInline]
@@ -95,7 +102,7 @@ class CustomUserAdmin(UserAdmin):
     fieldsets = (
         (None, {"fields": ("username", "phone", "email", "password")}),
         ("Permissions", {"fields": ("role", "is_staff", "is_superuser", "groups", "user_permissions")}),
-        ("Status", {"fields": ("is_verified", "is_active" , 'profile_completed')}),
+        ("Status", {"fields": ("is_verified", "is_active", 'profile_completed')}),
     )
 
     # CREATE page (IMPORTANT: no "password" here)
@@ -130,5 +137,8 @@ class CurrencyAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name')
 
 
-
-
+@admin.register(Amenity)
+class Admin(admin.ModelAdmin):
+    list_display = ('name', 'icon')
+    search_fields = ('name',)
+    list_filter = ('name',)
