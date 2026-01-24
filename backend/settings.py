@@ -17,6 +17,9 @@ DEBUG = (os.getenv("DEBUG", "True").strip().lower() in ("1", "true", "yes", "y",
 
 ALLOWED_HOSTS = ["*"]
 
+GDAL_LIBRARY_PATH = "/opt/homebrew/lib/libgdal.dylib"
+GEOS_LIBRARY_PATH = "/opt/homebrew/lib/libgeos_c.dylib"
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -28,7 +31,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
+    'leaflet',
+    'crispy_forms',
     'rest_framework',
+    'ninja',
     'core.apps.CoreConfig'
 ]
 MIDDLEWARE = [
@@ -65,13 +72,13 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
-        "NAME": os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")),
-        "USER": os.getenv("DB_USER", ""),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", ""),
-        "PORT": os.getenv("DB_PORT", ""),
+    'default': {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("POSTGRES_USER"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -135,3 +142,31 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 NINJA_PAGINATION_PER_PAGE = 25
+
+LEAFLET_CONFIG = {
+    "DEFAULT_CENTER": (54.5, -3.5),  # UK center (lat, lng)
+    "DEFAULT_ZOOM": 6,
+
+    "MIN_ZOOM": 5,
+    "MAX_ZOOM": 18,
+
+    "RESET_VIEW": False,
+
+    "TILES": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "ATTRIBUTION_PREFIX": "Powered by Leaflet",
+
+    "SCALE": "both",
+    "MINIMAP": False,
+
+    # Restrict map to UK bounds
+    "BOUNDS": [
+        [49.8, -8.6],   # south-west (Cornwall area)
+        [60.9, 1.8],    # north-east (Scotland)
+    ],
+}
+
+LOCATION_FIELD = {
+    "map.provider": "openstreetmap",
+    "map.zoom": 6,
+    "map.center": (54.5, -3.5),  # UK (lat, lng)
+}

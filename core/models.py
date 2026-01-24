@@ -5,10 +5,11 @@ from datetime import timedelta
 from cities_light.models import Country, Region, City
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
+from django.contrib.gis.db import models
 from django.utils import timezone
 
 from core.validators.phone_number_validator import validate_phone_us_uk_iq
+from django.contrib.gis.db.models import PointField
 
 
 class CustomUser(AbstractUser):
@@ -91,7 +92,13 @@ class Property(models.Model):
     currency = models.ForeignKey(Currency, on_delete=models.PROTECT)
     province = models.ForeignKey(Region, on_delete=models.SET_NULL, null=True, blank=True)
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True)
-    location = models.JSONField()  # For lat/lng
+    location = PointField(
+        verbose_name="Location",
+        null=True,
+        blank=True,
+        geography=True,
+        srid=4326
+    )
     status = models.CharField(max_length=10, choices=PropertyStatus.choices, default=PropertyStatus.AVAILABLE)
     approved = models.BooleanField(default=False)
     owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='properties')

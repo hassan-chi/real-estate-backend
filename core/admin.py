@@ -7,6 +7,7 @@ from django.urls import path
 from django.shortcuts import redirect
 from django.utils.html import format_html
 from admin_searchable_dropdown.filters import AutocompleteFilter
+from leaflet.admin import LeafletGeoAdmin
 
 
 class OwnerFilter(AutocompleteFilter):
@@ -27,7 +28,7 @@ class PropertyImageInline(admin.TabularInline):
 
 
 @admin.register(Property)
-class PropertyAdmin(admin.ModelAdmin):
+class PropertyAdmin(LeafletGeoAdmin):
     autocomplete_fields = ("owner", "city", 'province')
     list_display = ("title", "owner", "status", "approved")
     list_filter = ("status", "approved", "property_type", OwnerFilter, 'amenities__name')

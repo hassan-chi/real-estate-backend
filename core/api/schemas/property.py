@@ -1,8 +1,9 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from ninja import Schema, Field
-from pydantic import model_validator
+from pydantic import model_validator, field_validator
+
 
 class PropertyType(str, Enum):
     APARTMENT = 'apartment'
@@ -93,3 +94,20 @@ class PropertyFilterSchema(Schema):
         if self.min_price is not None and self.max_price is not None and self.max_price < self.min_price:
             raise ValueError("max_price cannot be less than min_price")
         return self
+
+
+class PropertyCreateSchema(Schema):
+    title: str
+    description: str
+    property_type: PropertyType
+    listing_type: ListingType
+    price: int
+    currency_id: int
+    province_id: int
+    city_id: int
+    longitude: float
+    latitude: float
+    bedrooms: int
+    bathrooms: int
+    area: int
+    amenity_ids: str
