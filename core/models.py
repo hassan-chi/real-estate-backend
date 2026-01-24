@@ -75,8 +75,7 @@ class Property(models.Model):
     property_type = models.CharField(max_length=20, choices=PropertyType.choices)
     listing_type = models.CharField(max_length=10, choices=ListingType.choices)
     price = models.IntegerField(validators=[
-        MinValueValidator(1),
-        MaxValueValidator(20)
+        MinValueValidator(1)
     ])
     currency = models.ForeignKey(Currency, on_delete=models.PROTECT)
     location = models.JSONField()  # For lat/lng
@@ -194,3 +193,21 @@ class PhoneOTP(models.Model):
             verification_sid=verification_sid,
             expires_at=expires_at,
         )
+
+
+class PropertyImage(models.Model):
+    property = models.ForeignKey(
+        Property,
+        on_delete=models.CASCADE,
+        related_name="images",
+    )
+    image = models.ImageField(upload_to="properties/%Y/%m/%d/")
+    order = models.PositiveIntegerField(default=0)
+    is_cover = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"Image for {self.property_id}"

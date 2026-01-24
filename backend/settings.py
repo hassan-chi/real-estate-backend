@@ -131,3 +131,5 @@ OTP_WHITELIST = [
 
 OTP_TEST_CODE = os.getenv("OTP_TEST_CODE", "00000")
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
