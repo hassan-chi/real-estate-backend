@@ -3,6 +3,7 @@ from typing import List, Optional, Union
 
 from ninja import Schema, Field
 from pydantic import model_validator, field_validator
+from core.api.schemas.pagination import PaginatedResponse
 
 
 class PropertyType(str, Enum):
@@ -111,3 +112,31 @@ class PropertyCreateSchema(Schema):
     bathrooms: int
     area: int
     amenity_ids: str
+
+
+class PropertyUpdateSchema(Schema):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    property_type: Optional[PropertyType] = None
+    listing_type: Optional[ListingType] = None
+    price: Optional[int] = None
+    currency_id: Optional[int] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    area: Optional[int] = None
+
+
+class PropertyAmenityUpdateSchema(Schema):
+    amenity_ids: List[int]
+
+
+class ImageReorderSchema(Schema):
+    image_id: int = Field(..., description="Image ID to move")
+    new_position: int = Field(..., ge=0, description="New position (0-indexed, other images will shift)")
+
+
+PaginatedPropertyOut = PaginatedResponse[PropertyOut]
+
+
+
+
