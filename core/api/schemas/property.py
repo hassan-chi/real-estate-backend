@@ -51,13 +51,27 @@ class PropertyOut(Schema):
     listing_type: ListingType
     price: int
     currency: CurrencyOut
-    province_id: int
-    city_id: int
+    province: str
+    city: str
     bedrooms: int
     bathrooms: int
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
     area: int
     amenities: List[AmenityOut]
     images: List[PropertyImageOut]
+
+    @staticmethod
+    def resolve_longitude(obj) -> Optional[float]:
+        if obj.location:
+            return obj.location.x
+        return None
+
+    @staticmethod
+    def resolve_latitude(obj) -> Optional[float]:
+        if obj.location:
+            return obj.location.y
+        return None
 
     @staticmethod
     def resolve_images(obj) -> List[PropertyImageOut]:
@@ -69,7 +83,13 @@ class PropertyOut(Schema):
                 order=image.order
             ) for image in obj.images.all()
         ]
+    @staticmethod
+    def resolve_province(obj) -> str:
+        return obj.province.name
 
+    @staticmethod
+    def resolve_city(obj) -> str:
+        return obj.city.name
     @staticmethod
     def resolve_amenities(obj) -> List[AmenityOut]:
         return [
@@ -82,6 +102,8 @@ class PropertyOut(Schema):
 
 
 class PropertyFilterSchema(Schema):
+    search: Optional[str] = None
+    property_type: Optional[PropertyType] = None
     province_id: Optional[int] = Field(None, description="Filter by province")
     city_id: Optional[int] = Field(None, description="Filter by city")
     listing_type: Optional[ListingType] = Field(None, description="Filter by listing type (rent/sale)")

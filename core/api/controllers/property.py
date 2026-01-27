@@ -11,6 +11,7 @@ from core.api.schemas.pagination import PaginationParams
 from django.contrib.gis.geos import Point
 from django.db import models
 from django.db import transaction
+from django.core.paginator import Paginator
 
 router = Router(tags=["property"])
 
@@ -313,13 +314,42 @@ def delete_property_image(request, property_id: int, image_id: int):
 
 
 
+@router.get("/myproperty", auth=GlobalAuth(), response=PaginatedPropertyOut)
+def get_my_properties(request, pagination: PaginationParams = Query(...)):
+    """Get all properties owned by the authenticated user."""
+    
+    user: CustomUser = request.user
+    queryset = Property.objects.filter(owner=user).select_related(
+        'currency', 'province', 'city'
+    ).prefetch_related('images', 'amenities').order_by('-id')
+
+    paginator = Paginator(queryset, pagination.page_size)
+    page_obj = paginator.get_page(pagination.page)
+    
+    return {
+        "items": list(page_obj),
+        "count": paginator.count,
+        "page": page_obj.number,
+        "page_size": pagination.page_size,
+        "total_pages": paginator.num_pages,
+    }
+
+
 @router.get("/", response=PaginatedPropertyOut)
 def get_properties(request, filters: PropertyFilterSchema = Query(...), pagination: PaginationParams = Query(...)):
-    from django.core.paginator import Paginator
     
     queryset = Property.objects.filter(approved=True, status="available").select_related('currency', 'province',
                                                                                          'city').prefetch_related(
         'images', 'amenities')
+
+    if filters.search:
+        queryset = queryset.filter(
+            models.Q(title__icontains=filters.search) | 
+            models.Q(description__icontains=filters.search)
+        )
+
+    if filters.property_type:
+        queryset = queryset.filter(property_type=filters.property_type)
 
     if filters.province_id:
         queryset = queryset.filter(province_id=filters.province_id)
