@@ -26,6 +26,7 @@ class PropertyImageOut(Schema):
 
 
 class CurrencyOut(Schema):
+    id: int
     code: str
     name: str
     symbol: str
@@ -52,26 +53,19 @@ class PropertyOut(Schema):
     price: int
     currency: CurrencyOut
     province: str
+    province_id: int
     city: str
+    city_id: int
     bedrooms: int
     bathrooms: int
     longitude: Optional[float] = None
     latitude: Optional[float] = None
     area: int
+    restrooms: int
+    balconies: int
+    furnished: bool
     amenities: List[AmenityOut]
     images: List[PropertyImageOut]
-
-    @staticmethod
-    def resolve_longitude(obj) -> Optional[float]:
-        if obj.location:
-            return obj.location.x
-        return None
-
-    @staticmethod
-    def resolve_latitude(obj) -> Optional[float]:
-        if obj.location:
-            return obj.location.y
-        return None
 
     @staticmethod
     def resolve_images(obj) -> List[PropertyImageOut]:
@@ -88,8 +82,16 @@ class PropertyOut(Schema):
         return obj.province.name
 
     @staticmethod
+    def resolve_province_id(obj) -> int:
+        return obj.province.id
+    
+    @staticmethod
     def resolve_city(obj) -> str:
         return obj.city.name
+    
+    @staticmethod
+    def resolve_city_id(obj) -> int:
+        return obj.city.id
     @staticmethod
     def resolve_amenities(obj) -> List[AmenityOut]:
         return [
@@ -133,6 +135,9 @@ class PropertyCreateSchema(Schema):
     bedrooms: int
     bathrooms: int
     area: int
+    restrooms: int
+    balconies: int
+    furnished: bool
     amenity_ids: str
 
 
@@ -146,10 +151,15 @@ class PropertyUpdateSchema(Schema):
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
     area: Optional[int] = None
+    province_id: Optional[int] = None
+    city_id: Optional[int] = None
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
+    restrooms: Optional[int] = None
+    balconies: Optional[int] = None
+    furnished: Optional[bool] = False
+    amenity_ids: Optional[List[int]] = None
 
-
-class PropertyAmenityUpdateSchema(Schema):
-    amenity_ids: List[int]
 
 
 class ImageReorderSchema(Schema):

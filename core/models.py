@@ -5,11 +5,10 @@ from datetime import timedelta
 from cities_light.models import Country, Region, City
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.contrib.gis.db import models
+from django.db import models
 from django.utils import timezone
 
 from core.validators.phone_number_validator import validate_phone_us_uk_iq
-from django.contrib.gis.db.models import PointField
 
 
 class CustomUser(AbstractUser):
@@ -92,19 +91,17 @@ class Property(models.Model):
     currency = models.ForeignKey(Currency, on_delete=models.PROTECT)
     province = models.ForeignKey(Region, on_delete=models.SET_NULL, null=True, blank=True)
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True)
-    location = PointField(
-        verbose_name="Location",
-        null=True,
-        blank=True,
-        geography=True,
-        srid=4326
-    )
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=PropertyStatus.choices, default=PropertyStatus.AVAILABLE)
     approved = models.BooleanField(default=False)
     owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='properties')
     bedrooms = models.PositiveIntegerField(default=1)
     bathrooms = models.PositiveIntegerField(default=1)
-    area = models.PositiveIntegerField(help_text="in square meters", default=0) # in square meters
+    area = models.PositiveIntegerField(help_text="in square meters", default=0)
+    restrooms = models.PositiveIntegerField(default=1)
+    balconies = models.PositiveIntegerField(default=1)
+    furnished = models.BooleanField(default=False)
     amenities = models.ManyToManyField(Amenity, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -115,28 +112,62 @@ class Property(models.Model):
 
 class PropertyRequest(models.Model):
     class RequestType(models.TextChoices):
-        VIEWING = 'viewing', 'Viewing'
-        INQUIRY = 'inquiry', 'Inquiry'
+        PURCHASE = 'purchase', 'Purchase'
+        RENT = 'rent', 'Rent'
+        CALL = 'call', 'Call Request'
+        DETAILS = 'details', 'Request Details'
 
     class RequestStatus(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        ACCEPTED = 'accepted', 'Accepted'
-        REJECTED = 'rejected', 'Rejected'
+        NEW = 'new', 'New'
+        CONTACTED = 'contacted', 'Contacted'
+        IN_PROGRESS = 'in_progress', 'In Progress'
         CLOSED = 'closed', 'Closed'
 
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='property_requests')
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='requests')
     request_type = models.CharField(max_length=10, choices=RequestType.choices)
-    status = models.CharField(max_length=10, choices=RequestStatus.choices, default=RequestStatus.PENDING)
+    message = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=12, choices=RequestStatus.choices, default=RequestStatus.NEW)
     assigned_agent = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-                                       related_name='agent_requests')
+                                       related_name='assigned_requests')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f'{self.get_request_type_display()} for {self.property.title} by {self.user.username}'
 
 
+class Subscription(models.Model):
+    class Plan(models.TextChoices):
+        MONTHLY = 'monthly', 'Monthly'
+        PERLISTING = 'perlisting', 'Per Listing'
+        YEARLY = 'yearly', 'Yearly'
 
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='seller_subscriptions')
+    start_date = models.DateTimeField(auto_now_add=True)
+    end_date = models.DateTimeField()
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    plan = models.CharField(max_length=20, choices=Plan.choices)
+
+    def __str__(self):
+        return f'{self.user.username} - {self.get_plan_display()}'
+
+class Advertisement(models.Model):
+    class POSTITON(models.TextChoices):
+        HOME = 'home', 'Home'
+        SEARCH = 'search', 'Search'
+        DETAILS = 'details', 'Details'
+    title = models.CharField(max_length=255)
+    image = models.ImageField(upload_to='advertisements')
+    position = models.CharField(max_length=20, choices=POSTITON.choices)
+    link = models.URLField()
+    start_date = models.DateTimeField(auto_now_add=True)
+    end_date = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 class PhoneOTP(models.Model):
     class Purpose(models.TextChoices):
