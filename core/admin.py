@@ -7,7 +7,6 @@ from django.urls import path
 from django.shortcuts import redirect
 from django.utils.html import format_html
 from admin_searchable_dropdown.filters import AutocompleteFilter
-from leaflet.admin import LeafletGeoAdmin
 
 
 class OwnerFilter(AutocompleteFilter):
@@ -28,7 +27,7 @@ class PropertyImageInline(admin.TabularInline):
 
 
 @admin.register(Property)
-class PropertyAdmin(LeafletGeoAdmin):
+class PropertyAdmin(admin.ModelAdmin):
     autocomplete_fields = ("owner", "city", 'province')
     list_display = ("title", "owner", "status", "approved")
     list_filter = ("status", "approved", "property_type", OwnerFilter, 'amenities__name')
@@ -128,6 +127,12 @@ class PropertyRequestAdmin(admin.ModelAdmin):
     close_requests.short_description = "Mark selected requests as closed"
 
     actions = [close_requests]
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser or request.user.role == 'admin':
+            return qs
+        return qs.filter(assigned_agent=request.user)
 
 
 @admin.register(Currency)
