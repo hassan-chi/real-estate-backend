@@ -8,7 +8,8 @@ from core.models import Property, Currency, Amenity, PropertyImage, CustomUser
 from core.api.schemas.property import PropertyOut, PropertyFilterSchema, PropertyCreateSchema, PropertyUpdateSchema, \
     PaginatedPropertyOut, ImageReorderSchema
 from core.api.schemas.pagination import PaginationParams
-from django.db import transaction
+from django.db import transaction, OperationalError
+import time
 from django.core.paginator import Paginator
 
 router = Router(tags=["property"])
@@ -341,50 +342,64 @@ def reorder_property_images(request, property_id: int, payload: ImageReorderSche
         return 403, MessageOut(title="fail", message="You are not authorized to update this property.")
 
 
-    with transaction.atomic():
-        # Lock all images for this property in consistent order (by id) to prevent deadlocks
-        all_images = list(
-            PropertyImage.objects.filter(property=property_instance)
-            .order_by('id')
-        )
-        
-        # Sort by current order for position calculations
-        all_images_by_order = sorted(all_images, key=lambda x: x.order)
-        
-        # Find the image to move
-        image_to_move = None
-        for img in all_images_by_order:
-            if img.id == payload.image_id:
-                image_to_move = img
-                break
-        
-        if not image_to_move:
-            return 404, MessageOut(title="failed", message="Image not found for this property.")
-        
-        # Validate new position
-        if payload.new_position < 0 or payload.new_position >= len(all_images_by_order):
-            return 400, MessageOut(title="failed",
-                                   message=f"Invalid position. Must be between 0 and {len(all_images_by_order) - 1}.")
-        
-        # Get current position
-        current_position = next(i for i, img in enumerate(all_images_by_order) if img.id == image_to_move.id)
-        
-        # If position hasn't changed, no need to update
-        if current_position == payload.new_position:
-            return Property.objects.select_related('currency', 'province', 'city').prefetch_related('images',
-                                                                                                    'amenities').get(
-                id=property_instance.id)
-        
-        # Remove image from current position and insert at new position
-        all_images_by_order.pop(current_position)
-        all_images_by_order.insert(payload.new_position, image_to_move)
-        
-        # Update all orders
-        for index, image in enumerate(all_images_by_order):
-            image.order = index
-        
-        # Bulk update all images at once
-        PropertyImage.objects.bulk_update(all_images_by_order, ['order'])
+    max_retries = 5
+    retry_delay = 0.1
+
+    for attempt in range(max_retries):
+        try:
+            with transaction.atomic():
+                # Lock all images for this property in consistent order (by id) to prevent deadlocks
+                all_images = list(
+                    PropertyImage.objects.filter(property=property_instance)
+                    .order_by('id')
+                )
+                
+                # Sort by current order for position calculations
+                all_images_by_order = sorted(all_images, key=lambda x: x.order)
+                
+                # Find the image to move
+                image_to_move = None
+                for img in all_images_by_order:
+                    if img.id == payload.image_id:
+                        image_to_move = img
+                        break
+                
+                if not image_to_move:
+                    return 404, MessageOut(title="failed", message="Image not found for this property.")
+                
+                # Validate new position
+                if payload.new_position < 0 or payload.new_position >= len(all_images_by_order):
+                    return 400, MessageOut(title="failed",
+                                           message=f"Invalid position. Must be between 0 and {len(all_images_by_order) - 1}.")
+                
+                # Get current position
+                current_position = next(i for i, img in enumerate(all_images_by_order) if img.id == image_to_move.id)
+                
+                # If position hasn't changed, no need to update
+                if current_position == payload.new_position:
+                    return Property.objects.select_related('currency', 'province', 'city').prefetch_related('images',
+                                                                                                            'amenities').get(
+                        id=property_instance.id)
+                
+                # Remove image from current position and insert at new position
+                all_images_by_order.pop(current_position)
+                all_images_by_order.insert(payload.new_position, image_to_move)
+                
+                # Update all orders
+                for index, image in enumerate(all_images_by_order):
+                    image.order = index
+                
+                # Bulk update all images at once
+                PropertyImage.objects.bulk_update(all_images_by_order, ['order'])
+            
+            # If we get here, the transaction succeeded
+            break
+            
+        except OperationalError as e:
+            if "locked" in str(e) and attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                continue
+            raise e
 
     return Property.objects.select_related('currency', 'province', 'city').prefetch_related('images', 'amenities').get(
         id=property_instance.id)
