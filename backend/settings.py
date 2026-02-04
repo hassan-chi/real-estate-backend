@@ -136,3 +136,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 NINJA_PAGINATION_PER_PAGE = 25
+
+# OneSignal Configuration
+ONESIGNAL_APP_ID = os.getenv("ONESIGNAL_APP_ID")
+ONESIGNAL_API_KEY = os.getenv("ONESIGNAL_API_KEY")

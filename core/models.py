@@ -264,3 +264,60 @@ class PropertyImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.property_id}"
+
+
+class Notification(models.Model):
+    class NotificationType(models.TextChoices):
+        # Property-related
+        PROPERTY_SOLD = 'property_sold', 'Property Sold'
+        PROPERTY_RENTED = 'property_rented', 'Property Rented'
+        PROPERTY_APPROVED = 'property_approved', 'Property Approved'
+        PROPERTY_REJECTED = 'property_rejected', 'Property Rejected'
+        
+        # Request-related
+        NEW_REQUEST = 'new_request', 'New Property Request'
+        REQUEST_STATUS_CHANGED = 'request_status', 'Request Status Changed'
+        REQUEST_ASSIGNED = 'request_assigned', 'Request Assigned to Agent'
+        
+        # Subscription-related
+        SUBSCRIPTION_EXPIRING = 'sub_expiring', 'Subscription Expiring Soon'
+        SUBSCRIPTION_EXPIRED = 'sub_expired', 'Subscription Expired'
+        
+        # General
+        SYSTEM = 'system', 'System Notification'
+        PROMO = 'promo', 'Promotional'
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='notifications')
+    notification_type = models.CharField(max_length=30, choices=NotificationType.choices)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    
+    # Related objects for deep linking
+    related_property = models.ForeignKey(Property, on_delete=models.SET_NULL, null=True, blank=True)
+    related_request = models.ForeignKey(PropertyRequest, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Read tracking
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    # Push notification tracking
+    is_pushed = models.BooleanField(default=False)
+    onesignal_id = models.CharField(max_length=100, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read']),
+            models.Index(fields=['user', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_notification_type_display()} for {self.user.username}"
+
+    def mark_as_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
