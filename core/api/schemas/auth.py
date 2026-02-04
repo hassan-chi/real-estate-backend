@@ -69,3 +69,4 @@ class UserOut(Schema):
 
 class AuthOutSchema(Schema):
     token: str
+    user_id: int

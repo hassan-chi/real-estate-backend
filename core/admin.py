@@ -1,6 +1,7 @@
 from django.contrib.auth.admin import UserAdmin
 
-from .models import CustomUser, PropertyRequest, Property, Currency, PropertyImage, Amenity
+from .models import CustomUser, PropertyRequest, Property, Currency, PropertyImage, Amenity, Notification
+from .services.onesignal_service import send_push_notification
 
 from django.contrib import admin, messages
 from django.urls import path
@@ -85,8 +86,79 @@ class PropertyAdmin(admin.ModelAdmin):
 
         obj.approved = True
         obj.save(update_fields=["approved"])
+        
+        # Create notification for property owner
+        notification = Notification.objects.create(
+            user=obj.owner,
+            notification_type=Notification.NotificationType.PROPERTY_APPROVED,
+            title="Property Approved",
+            message=f"Your property '{obj.title}' has been approved and is now visible to buyers.",
+            related_property=obj,
+        )
+        
+        # Send push notification
+        result = send_push_notification(
+            user_id=obj.owner.id,
+            title=notification.title,
+            message=notification.message,
+            data={"type": "property_approved", "property_id": obj.id}
+        )
+        if result.get("success") and result.get("notification_id"):
+            notification.is_pushed = True
+            notification.onesignal_id = result["notification_id"]
+            notification.save(update_fields=["is_pushed", "onesignal_id"])
+        
         self.message_user(request, "Property approved successfully.", messages.SUCCESS)
         return redirect("../change/")
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            old_obj = Property.objects.get(pk=obj.pk)
+            old_status = old_obj.status
+        else:
+            old_status = None
+        
+        super().save_model(request, obj, form, change)
+        
+        # Check if status changed and create notification
+        if change and old_status != obj.status:
+            if obj.status == Property.PropertyStatus.SOLD:
+                notification = Notification.objects.create(
+                    user=obj.owner,
+                    notification_type=Notification.NotificationType.PROPERTY_SOLD,
+                    title="Property Sold",
+                    message=f"Congratulations! Your property '{obj.title}' has been marked as sold.",
+                    related_property=obj,
+                )
+                result = send_push_notification(
+                    user_id=obj.owner.id,
+                    title=notification.title,
+                    message=notification.message,
+                    data={"type": "property_sold", "property_id": obj.id}
+                )
+                if result.get("success") and result.get("notification_id"):
+                    notification.is_pushed = True
+                    notification.onesignal_id = result["notification_id"]
+                    notification.save(update_fields=["is_pushed", "onesignal_id"])
+                    
+            elif obj.status == Property.PropertyStatus.RENTED:
+                notification = Notification.objects.create(
+                    user=obj.owner,
+                    notification_type=Notification.NotificationType.PROPERTY_RENTED,
+                    title="Property Rented",
+                    message=f"Congratulations! Your property '{obj.title}' has been rented.",
+                    related_property=obj,
+                )
+                result = send_push_notification(
+                    user_id=obj.owner.id,
+                    title=notification.title,
+                    message=notification.message,
+                    data={"type": "property_rented", "property_id": obj.id}
+                )
+                if result.get("success") and result.get("notification_id"):
+                    notification.is_pushed = True
+                    notification.onesignal_id = result["notification_id"]
+                    notification.save(update_fields=["is_pushed", "onesignal_id"])
 
 
 @admin.register(CustomUser)
@@ -134,6 +206,59 @@ class PropertyRequestAdmin(admin.ModelAdmin):
             return qs
         return qs.filter(assigned_agent=request.user)
 
+    def save_model(self, request, obj, form, change):
+        if change:
+            old_obj = PropertyRequest.objects.get(pk=obj.pk)
+            old_status = old_obj.status
+            old_agent = old_obj.assigned_agent
+        else:
+            old_status = None
+            old_agent = None
+        
+        super().save_model(request, obj, form, change)
+        
+        # Notify user when request status changes
+        if change and old_status != obj.status:
+            notification = Notification.objects.create(
+                user=obj.user,
+                notification_type=Notification.NotificationType.REQUEST_STATUS_CHANGED,
+                title="Request Status Updated",
+                message=f"Your {obj.get_request_type_display()} request for '{obj.property.title}' is now {obj.get_status_display()}.",
+                related_property=obj.property,
+                related_request=obj,
+            )
+            result = send_push_notification(
+                user_id=obj.user.id,
+                title=notification.title,
+                message=notification.message,
+                data={"type": "request_status", "property_id": obj.property.id, "request_id": obj.id}
+            )
+            if result.get("success") and result.get("notification_id"):
+                notification.is_pushed = True
+                notification.onesignal_id = result["notification_id"]
+                notification.save(update_fields=["is_pushed", "onesignal_id"])
+        
+        # Notify agent when assigned to a request
+        if change and old_agent != obj.assigned_agent and obj.assigned_agent:
+            notification = Notification.objects.create(
+                user=obj.assigned_agent,
+                notification_type=Notification.NotificationType.REQUEST_ASSIGNED,
+                title="New Request Assigned",
+                message=f"You have been assigned to handle a {obj.get_request_type_display()} request for '{obj.property.title}'.",
+                related_property=obj.property,
+                related_request=obj,
+            )
+            result = send_push_notification(
+                user_id=obj.assigned_agent.id,
+                title=notification.title,
+                message=notification.message,
+                data={"type": "request_assigned", "property_id": obj.property.id, "request_id": obj.id}
+            )
+            if result.get("success") and result.get("notification_id"):
+                notification.is_pushed = True
+                notification.onesignal_id = result["notification_id"]
+                notification.save(update_fields=["is_pushed", "onesignal_id"])
+
 
 @admin.register(Currency)
 class CurrencyAdmin(admin.ModelAdmin):
@@ -148,3 +273,7 @@ class Admin(admin.ModelAdmin):
     list_display = ('name', 'icon')
     search_fields = ('name',)
     list_filter = ('name',)
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("title", "message" , "notification_type" , "is_pushed" , "is_read" , "onesignal_id")

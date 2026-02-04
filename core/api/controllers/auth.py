@@ -87,7 +87,7 @@ def check_verification(request, payload: VerificationCheckSchema):
 
         token = get_token_for_user(request, user)
 
-    return 200, AuthOutSchema(token=token)
+    return 200, AuthOutSchema(token=token , user_id=user.pk)
 
 
 @router.post(
