@@ -144,15 +144,43 @@ class Subscription(models.Model):
 
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='seller_subscriptions')
     start_date = models.DateTimeField(auto_now_add=True)
-    end_date = models.DateTimeField()
+    end_date = models.DateTimeField(null=True, blank=True)  # NULL for per-listing plans
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     plan = models.CharField(max_length=20, choices=Plan.choices)
+    
+    # For per-listing plans
+    listing_credits = models.PositiveIntegerField(default=0, help_text="Total purchased listing credits")
+    used_credits = models.PositiveIntegerField(default=0, help_text="Credits used for listings")
 
     def __str__(self):
         return f'{self.user.username} - {self.get_plan_display()}'
+    
+    @property
+    def remaining_credits(self):
+        """Get remaining listing credits for per-listing plans."""
+        return self.listing_credits - self.used_credits
+    
+    def can_create_listing(self):
+        """Check if user can create a new listing based on subscription."""
+        if not self.active:
+            return False
+        
+        if self.plan == self.Plan.PERLISTING:
+            return self.remaining_credits > 0
+        else:
+            # Time-based plans (monthly/yearly)
+            return self.end_date and self.end_date >= timezone.now()
+    
+    def use_credit(self):
+        """Deduct one credit for per-listing plans. Call after creating a property."""
+        if self.plan == self.Plan.PERLISTING:
+            self.used_credits += 1
+            if self.used_credits >= self.listing_credits:
+                self.active = False
+            self.save(update_fields=['used_credits', 'active'])
 
 class Advertisement(models.Model):
     class POSTITON(models.TextChoices):
@@ -168,6 +196,16 @@ class Advertisement(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class Support(models.Model):
+    title = models.CharField(max_length=255)
+    image = models.ImageField(upload_to='support/')
+    link = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return self.title
 
 class PhoneOTP(models.Model):
     class Purpose(models.TextChoices):
