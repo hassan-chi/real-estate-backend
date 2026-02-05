@@ -1,12 +1,15 @@
 from django.contrib.auth.admin import UserAdmin
 
-from .models import CustomUser, PropertyRequest, Property, Currency, PropertyImage, Amenity, Notification
+from .models import CustomUser, PropertyRequest, Property, Currency, PropertyImage, Amenity, Notification, \
+    Advertisement, Subscription, Support
 from .services.onesignal_service import send_push_notification
 
 from django.contrib import admin, messages
 from django.urls import path
 from django.shortcuts import redirect
 from django.utils.html import format_html
+from django.core.exceptions import ValidationError
+from django.forms import BaseInlineFormSet
 from admin_searchable_dropdown.filters import AutocompleteFilter
 
 
@@ -20,11 +23,32 @@ class AmenityFilter(AutocompleteFilter):
     field_name = "amenities"
 
 
+class PropertyImageInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        
+        # Count images that are not being deleted and have an image file
+        has_cover = False
+        image_count = 0
+        
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                if form.cleaned_data.get('image'):
+                    image_count += 1
+                    if form.cleaned_data.get('is_cover', False):
+                        has_cover = True
+        
+        # If there are images, at least one must be a cover
+        if image_count > 0 and not has_cover:
+            raise ValidationError("At least one image must be marked as cover.")
+
+
 class PropertyImageInline(admin.TabularInline):
     model = PropertyImage
     extra = 1
     fields = ("image", "is_cover", "order")
     ordering = ("order",)
+    formset = PropertyImageInlineFormSet
 
 
 @admin.register(Property)
@@ -277,3 +301,25 @@ class Admin(admin.ModelAdmin):
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ("title", "message" , "notification_type" , "is_pushed" , "is_read" , "onesignal_id")
+
+@admin.register(Advertisement)
+class AdvertisementAdmin(admin.ModelAdmin):
+    list_display = ("title", "active" , "start_date" , "end_date" , "image" , "position")
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("user", "plan", "start_date", "end_date", "active", "listing_credits", "used_credits", "get_remaining_credits")
+    list_filter = ("plan", "active")
+    search_fields = ("user__username", "user__phone")
+    autocomplete_fields = ("user",)
+    readonly_fields = ("get_remaining_credits",)
+    
+    def get_remaining_credits(self, obj):
+        return obj.remaining_credits
+    get_remaining_credits.short_description = "Remaining Credits"
+
+
+@admin.register(Support)
+class SupportAdmin(admin.ModelAdmin):
+    list_display = ("title", "link", "image", "created_at")
+    search_fields = ("title",)

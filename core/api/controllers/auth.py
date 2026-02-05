@@ -12,7 +12,7 @@ from core.api.auth import GlobalAuth, get_token_for_user
 from core.api.schemas.auth import PhoneNumberSchema, VerificationCheckSchema, CompleteProfileIn, AuthOutSchema, UserOut, \
     CountryOut, ProvinceOut, CityOut, LoginSchema
 from core.api.utils.messageOut import MessageOut
-from core.models import PhoneOTP, CustomUser
+from core.models import PhoneOTP, CustomUser, Notification, Subscription, Property
 from core.services.twilio_service import TwilioService
 
 router = Router(tags=['Auth'])
@@ -161,6 +161,12 @@ def complete_profile(request, payload: CompleteProfileIn):
 )
 def me(request):
     user: CustomUser = request.user
+    unread_count = Notification.objects.filter(user=user, is_read=False).count()
+    user_subscription = Subscription.objects.filter(user=user).first()
+    total_properties = Property.objects.filter(owner=user).count()
+    total_sold_properties = Property.objects.filter(owner=user, status= "sold").count()
+    total_rented_properties = Property.objects.filter(owner=user, status="rented").count()
+    total_active_listings = Property.objects.filter(owner=user, status="available").count()
     return 200, UserOut(
         username=user.username,
         phone=user.phone,
@@ -168,8 +174,13 @@ def me(request):
         role=user.role,
         is_verified=user.is_verified,
         profile_completed=user.profile_completed,
-
         country=CountryOut(id=user.country.id, name=user.country.name) if user.country else None,
         province=ProvinceOut(id=user.province.id, name=user.province.name) if user.province else None,
         city=CityOut(id=user.city.id, name=user.city.name) if user.city else None,
+        unread_notification_count=unread_count,
+        subscription=user_subscription,
+        total_properties=total_properties,
+        total_sold_properties=total_sold_properties,
+        total_rented_properties=total_rented_properties,
+        total_active_listings=total_active_listings,
     )

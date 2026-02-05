@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
 from ninja import Schema
@@ -55,6 +56,17 @@ class CompleteProfileIn(Schema):
     city_id: int = Field(..., gt=0)
 
 
+class SubscriptionOut(Schema):
+    id: int
+    start_date: datetime
+    end_date: Optional[datetime] = None  # NULL for per-listing plans
+    active: bool
+    created_at: datetime
+    price: float
+    plan: str
+    listing_credits: int = 0
+    used_credits: int = 0
+    remaining_credits: int = 0
 class UserOut(Schema):
     username: str
     phone: str
@@ -65,7 +77,12 @@ class UserOut(Schema):
     country: Optional[CountryOut] = None
     province: Optional[ProvinceOut] = None
     city: Optional[CityOut] = None
-
+    unread_notification_count: int = 0
+    subscription: Optional[SubscriptionOut] = None
+    total_properties: int = 0
+    total_sold_properties: int = 0
+    total_rented_properties: int = 0
+    total_active_listings: int = 0
 
 class AuthOutSchema(Schema):
     token: str

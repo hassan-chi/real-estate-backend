@@ -4,11 +4,11 @@ from ninja.files import UploadedFile
 from cities_light.models import City, Region
 from core.api.auth import GlobalAuth
 from core.api.utils.messageOut import MessageOut
-from core.models import Property, Currency, Amenity, PropertyImage, CustomUser
+from core.models import Property, Currency, Amenity, PropertyImage, CustomUser, Subscription
 from core.api.schemas.property import PropertyOut, PropertyFilterSchema, PropertyCreateSchema, PropertyUpdateSchema, \
     PaginatedPropertyOut, ImageReorderSchema
 from core.api.schemas.pagination import PaginationParams
-from django.db import transaction, OperationalError
+from django.db import transaction, OperationalError, models
 import time
 from django.core.paginator import Paginator
 
@@ -105,6 +105,18 @@ def create_property(request, payload: Form[PropertyCreateSchema], images: List[U
         return 403, MessageOut(title="fail", message="Please complete your profile first.")
     if user.role not in ['agent', 'admin', 'seller']:
         return 403, MessageOut(title="fail", message="You are not authorized to create a property.")
+    
+    # Check subscription for non-admin users
+    subscription = None
+    if user.role != 'admin':
+        subscription = Subscription.objects.filter(user=user, active=True).first()
+        if not subscription:
+            return 403, MessageOut(title="fail", message="You need an active subscription to create a property.")
+        if not subscription.can_create_listing():
+            if subscription.plan == Subscription.Plan.PERLISTING:
+                return 403, MessageOut(title="fail", message="No listing credits remaining. Please purchase more credits.")
+            else:
+                return 403, MessageOut(title="fail", message="Your subscription has expired. Please renew.")
 
     try:
         province = Region.objects.get(id=payload.province_id)
@@ -163,6 +175,10 @@ def create_property(request, payload: Form[PropertyCreateSchema], images: List[U
             order=i,
             is_cover=(i == 0)
         )
+    
+    # Deduct credit for per-listing subscription
+    if subscription and subscription.plan == Subscription.Plan.PERLISTING:
+        subscription.use_credit()
 
     return Property.objects.select_related('currency', 'province', 'city').prefetch_related('images', 'amenities').get(
         id=new_property.id)

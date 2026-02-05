@@ -31,7 +31,8 @@ INSTALLED_APPS = [
     'crispy_forms',
     'rest_framework',
     'ninja',
-    'core.apps.CoreConfig'
+    'core.apps.CoreConfig',
+    'django_crontab',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -140,3 +141,6 @@ NINJA_PAGINATION_PER_PAGE = 25
 # OneSignal Configuration
 ONESIGNAL_APP_ID = os.getenv("ONESIGNAL_APP_ID")
 ONESIGNAL_API_KEY = os.getenv("ONESIGNAL_API_KEY")
+CRONJOBS = [
+    ('0 * * * *', 'core.management.commands.check_expiring_subscriptions.Command.handle'),
+]
