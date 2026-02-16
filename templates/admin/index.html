@@ -1,0 +1,22 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+{% if request.user.is_superuser %}
+<div class="module">
+    <table style="width: 100%;">
+        <caption>
+            <a href="{% url 'admin_analytics' %}" class="section" title="{% trans 'Advanced Reports' %}">
+                {% trans 'Platform Analytics' %}
+            </a>
+        </caption>
+        <tr>
+            <th scope="row"><a href="{% url 'admin_analytics' %}">Agent Performance & Revenue Dashboard
+                </a></th>
+            <td><a href="{% url 'admin_analytics' %}" class="viewlink">{% trans 'View' %}</a></td>
+        </tr>
+    </table>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
