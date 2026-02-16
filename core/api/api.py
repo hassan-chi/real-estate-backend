@@ -9,6 +9,8 @@ from core.api.controllers.property_request import router as property_requests_ro
 from core.api.controllers.notification import router as notification_router
 from core.api.controllers.advertisement import router as advertisement_router
 from core.api.controllers.support import router as support_router
+from core.api.controllers.chat import router as chat_router
+from core.api.controllers.tools import router as tools_router
 
 router = Router()
 
@@ -20,6 +22,8 @@ router.add_router('/leads', property_requests_router)
 router.add_router('/notifications', notification_router)
 router.add_router('/ads', advertisement_router)
 router.add_router('/support', support_router)
+router.add_router('/chat', chat_router)
+router.add_router('/tools', tools_router)
 
 @router.get("/health")
 def mobile_health_check(request):

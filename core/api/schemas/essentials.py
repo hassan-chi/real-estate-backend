@@ -25,3 +25,11 @@ class EssentialsSchema(Schema):
     province: List[ProvinceOut]
     city: List[CityOut]
     currency: List[CurrencyOut]
+
+
+class LocationSearchOut(Schema):
+    city_id: int
+    city_name: str
+    province_id: int
+    province_name: str
+    display_name: str

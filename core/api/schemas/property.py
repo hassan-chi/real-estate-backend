@@ -66,6 +66,7 @@ class PropertyOut(Schema):
     furnished: bool
     amenities: List[AmenityOut]
     images: List[PropertyImageOut]
+    owner_id: int
 
     @staticmethod
     def resolve_images(obj) -> List[PropertyImageOut]:
@@ -84,7 +85,9 @@ class PropertyOut(Schema):
     @staticmethod
     def resolve_province_id(obj) -> int:
         return obj.province.id
-    
+    @staticmethod
+    def resolve_user_id(obj) -> int:
+        return obj.owner_id
     @staticmethod
     def resolve_city(obj) -> str:
         return obj.city.name

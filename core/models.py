@@ -28,6 +28,7 @@ class CustomUser(AbstractUser):
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     profile_completed = models.BooleanField(default=False)
+    avatar = models.ImageField(upload_to='avatars', null=True, blank=True)
 
     def __str__(self):
         return self.username
@@ -206,6 +207,28 @@ class Support(models.Model):
     
     def __str__(self):
         return self.title
+
+
+class ChatRoom(models.Model):
+    participants = models.ManyToManyField(CustomUser, related_name='chat_rooms')
+    property = models.ForeignKey('Property', on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_rooms')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Chat Room {self.id} - {self.property.title if self.property else 'General'}"
+
+
+class Message(models.Model):
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='sent_messages')
+    text = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.sender.username}: {self.text[:20]}'
+
 
 class PhoneOTP(models.Model):
     class Purpose(models.TextChoices):
