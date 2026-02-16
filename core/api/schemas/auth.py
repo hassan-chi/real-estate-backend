@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Optional
 
 from ninja import Schema
-from pydantic import field_validator, Field, EmailStr
+from pydantic import field_validator, Field, EmailStr, model_validator
+from django.utils import timezone
 from core.validators.phone_number_validator import validate_phone_us_uk_iq
 
 
@@ -40,7 +41,6 @@ class VerificationCheckSchema(Schema):
     code: str
 
 
-
 class CompleteProfileIn(Schema):
     username: str = Field(
         ...,
@@ -58,27 +58,34 @@ class CompleteProfileIn(Schema):
 
 class SubscriptionOut(Schema):
     id: int
-    start_date: datetime
-    end_date: Optional[datetime] = None  # NULL for per-listing plans
-    active: bool
-    created_at: datetime
-    price: float
     plan: str
-    listing_credits: int = 0
-    used_credits: int = 0
-    remaining_credits: int = 0
+    is_active: bool = False
+    expires_at: Optional[datetime] = None
+
+    @model_validator(mode='after')
+    def check_expiry(self):
+        if self.expires_at and self.expires_at < timezone.now():
+            self.is_active = False
+        return self
+
+
 class UserOut(Schema):
+    id: int
     username: str
-    phone: str
+    phone: Optional[str]
     email: Optional[str]
     role: str
+    avatar: Optional[str]
     is_verified: bool
     profile_completed: bool
-    country: Optional[CountryOut] = None
-    province: Optional[ProvinceOut] = None
-    city: Optional[CityOut] = None
-    unread_notification_count: int = 0
+
+    country: Optional[CountryOut]
+    province: Optional[ProvinceOut]
+    city: Optional[CityOut]
+    
     subscription: Optional[SubscriptionOut] = None
+    
+    unread_notification_count: int = 0
     total_properties: int = 0
     total_sold_properties: int = 0
     total_rented_properties: int = 0
@@ -87,3 +94,18 @@ class UserOut(Schema):
 class AuthOutSchema(Schema):
     token: str
     user_id: int
+
+
+class UpdateProfileIn(Schema):
+    username: Optional[str] = Field(
+        None,
+        min_length=3,
+        max_length=30,
+        pattern=r"^[a-zA-Z0-9_.]+$",
+        description="Letters/numbers/underscore/dot only",
+    )
+    email: Optional[EmailStr] = Field(default=None)
+
+    country_id: Optional[int] = Field(None, gt=0)
+    province_id: Optional[int] = Field(None, gt=0)
+    city_id: Optional[int] = Field(None, gt=0)

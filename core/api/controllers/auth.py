@@ -6,17 +6,16 @@ from http import HTTPStatus
 from cities_light.models import Country, Region, City
 from django.db import transaction
 from django.utils import timezone
-from ninja import Router
+from ninja import Router, File, UploadedFile
 from django.conf import settings
 from core.api.auth import GlobalAuth, get_token_for_user
 from core.api.schemas.auth import PhoneNumberSchema, VerificationCheckSchema, CompleteProfileIn, AuthOutSchema, UserOut, \
-    CountryOut, ProvinceOut, CityOut, LoginSchema
+    CountryOut, ProvinceOut, CityOut, LoginSchema, UpdateProfileIn, SubscriptionOut
 from core.api.utils.messageOut import MessageOut
 from core.models import PhoneOTP, CustomUser, Notification, Subscription, Property
 from core.services.twilio_service import TwilioService
 
 router = Router(tags=['Auth'])
-
 
 @router.post("/login/", response={HTTPStatus.OK: LoginSchema, HTTPStatus.TOO_MANY_REQUESTS: MessageOut})
 def login_start(request, payload: PhoneNumberSchema):
@@ -154,6 +153,74 @@ def complete_profile(request, payload: CompleteProfileIn):
     )
 
 
+@router.put(
+    "/profile/update/",
+    auth=GlobalAuth(),
+    response={200: MessageOut, 400: MessageOut, 403: MessageOut},
+)
+def update_profile(request, payload: UpdateProfileIn):
+    user: CustomUser = request.user
+    
+    if not user.is_verified:
+        return 403, MessageOut(title="failed", message="Verify your phone first.")
+        
+    with transaction.atomic():
+        # Update Username
+        if payload.username and payload.username != user.username:
+            if CustomUser.objects.filter(username__iexact=payload.username).exclude(id=user.id).exists():
+                return 400, MessageOut(title="failed", message="Username is already taken.")
+            user.username = payload.username
+            
+        # Update Email
+        if payload.email is not None:
+            user.email = payload.email if payload.email else None
+        
+        country = user.country
+        province = user.province
+        city = user.city
+        
+        location_changed = False
+        
+        if payload.country_id:
+            try:
+                country = Country.objects.get(id=payload.country_id)
+                location_changed = True
+            except Country.DoesNotExist:
+                return 400, MessageOut(title="failed", message="Country not found.")
+
+        if payload.province_id:
+            try:
+                province = Region.objects.get(id=payload.province_id)
+                location_changed = True
+            except Region.DoesNotExist:
+                return 400, MessageOut(title="failed", message="Province not found.")
+
+        if payload.city_id:
+            try:
+                city = City.objects.get(id=payload.city_id)
+                location_changed = True
+            except City.DoesNotExist:
+                return 400, MessageOut(title="failed", message="City not found.")
+                
+        # Validate Hierarchy if changed
+        if location_changed:
+            if province and country and province.country_id != country.id:
+                 return 400, MessageOut(title="failed", message="Province does not belong to country.")
+            if city and province and city.region_id != province.id:
+                 return 400, MessageOut(title="failed", message="City does not belong to province.")
+                 
+            user.country = country
+            user.province = province
+            user.city = city
+
+        user.save()
+
+    return 200, MessageOut(
+        title="success",
+        message="Profile updated successfully."
+    )
+
+
 @router.get(
     "/me/",
     auth=GlobalAuth(),
@@ -168,8 +235,10 @@ def me(request):
     total_rented_properties = Property.objects.filter(owner=user, status="rented").count()
     total_active_listings = Property.objects.filter(owner=user, status="available").count()
     return 200, UserOut(
+        id=user.id,
         username=user.username,
         phone=user.phone,
+        avatar=user.avatar,
         email=user.email,
         role=user.role,
         is_verified=user.is_verified,
@@ -184,3 +253,25 @@ def me(request):
         total_rented_properties=total_rented_properties,
         total_active_listings=total_active_listings,
     )
+
+
+@router.post(
+    "/profile/avatar/",
+    auth=GlobalAuth(),
+    response={200: MessageOut, 400: MessageOut},
+)
+def change_avatar(request, file: UploadedFile = File(...)):
+    user: CustomUser = request.user
+    
+    # 1. Validate File Size (max 5MB)
+    if file.size > 5 * 1024 * 1024:
+        return 400, MessageOut(title="failed", message="File too large. Max 5MB.")
+        
+    # 2. Validate Content Type
+    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+         return 400, MessageOut(title="failed", message="Only JPEG and PNG images are allowed.")
+         
+    # 3. Save to User
+    user.avatar.save(file.name, file)
+    user.save()
+    return 200, MessageOut(title="success", message="Avatar updated successfully.")
